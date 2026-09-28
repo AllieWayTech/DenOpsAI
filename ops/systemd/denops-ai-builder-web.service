@@ -10,7 +10,7 @@ Group=pingpassport
 WorkingDirectory=/opt/denops-ai
 Environment=PYTHONPATH=/opt/denops-ai/src
 EnvironmentFile=/etc/denops-ai/web.env
-ExecStart=/usr/bin/python3 -m denops_ai_builder --root /opt/denops-ai --serve --host 127.0.0.1 --port 8080
+ExecStart=/usr/bin/python3 -m denops_ai_builder --root /opt/denops-ai --serve --host 192.168.1.13 --port 8080
 Restart=on-failure
 RestartSec=5s
 NoNewPrivileges=yes
@@ -35,4 +35,3 @@ TasksMax=64
 
 [Install]
 WantedBy=multi-user.target
-

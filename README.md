@@ -39,15 +39,14 @@ It listens on `127.0.0.1:8080` by default. Binding to a non-loopback address is
 refused unless the administrative password is present. The server uses HTTP
 Basic authentication, so a future LAN deployment must be placed behind HTTPS.
 
-The supplied systemd unit keeps the first deployment loopback-only. An operator
-can reach it with an SSH tunnel:
+The supplied systemd unit binds the current deployment to the DenOps AI VM's
+VLAN address at `192.168.1.13:8080`. Open it directly from the trusted LAN:
 
-```bash
-ssh -L 8080:127.0.0.1:8080 pingpassport@denops-ai
-```
+`http://192.168.1.13:8080`
 
-Then open `http://127.0.0.1:8080`. The username is `admin`; the password belongs
-in `/etc/denops-ai/web.env`, outside version control.
+The username is `admin`; the password belongs in `/etc/denops-ai/web.env`,
+outside version control. HTTP Basic credentials are not encrypted in transit,
+so access must remain on the trusted LAN until an HTTPS reverse proxy is added.
 
 ## Configuration reserved for the GPU server
 
