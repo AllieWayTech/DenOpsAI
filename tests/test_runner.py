@@ -5,6 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from denops_ai_builder.analysis import analyze_task, claim_daily_api_attempt
 from denops_ai_builder.runner import run_once
 from denops_ai_builder.state import BuilderStatus, write_status
 from denops_ai_builder.web import _authorized, write_task
@@ -31,7 +32,7 @@ class RunnerTests(unittest.TestCase):
         status = run_once(root, environment={})
         self.assertEqual("blocked", status.stage)
         self.assertEqual(
-            ["DENOPS_AI_MODEL_URL", "DENOPS_AI_SAFEGUARD_URL"],
+            ["OPENAI_API_KEY", "DENOPS_AI_OPENAI_ENABLED"],
             status.missing_configuration,
         )
 
@@ -40,11 +41,44 @@ class RunnerTests(unittest.TestCase):
         status = run_once(
             root,
             environment={
-                "DENOPS_AI_MODEL_URL": "http://model.internal/v1",
-                "DENOPS_AI_SAFEGUARD_URL": "http://safeguard.internal/v1",
+                "DENOPS_AI_PROVIDER": "openai",
+                "OPENAI_API_KEY": "test-key",
+                "DENOPS_AI_OPENAI_ENABLED": "1",
             },
         )
         self.assertEqual("ready", status.stage)
+
+    def test_analysis_writes_reviewable_plan(self) -> None:
+        class FakeProvider:
+            def create_plan(self, task: str, policy: str) -> str:
+                self.assertions = (task, policy)
+                return "1. Make one small change.\n2. Run tests."
+
+        root = self.make_root("Implement one small feature.\n")
+        (root / "policies").mkdir()
+        (root / "policies" / "builder-policy.md").write_text(
+            "Stay in the repository.", encoding="utf-8"
+        )
+        plan = analyze_task(
+            root,
+            environment={
+                "OPENAI_API_KEY": "test-key",
+                "DENOPS_AI_OPENAI_ENABLED": "1",
+            },
+            provider=FakeProvider(),
+        )
+        self.assertIn("Run tests", plan)
+        self.assertEqual(
+            "review-ready",
+            json.loads((root / "state" / "status.json").read_text())["stage"],
+        )
+
+    def test_daily_api_attempt_limit_fails_closed(self) -> None:
+        root = self.make_root()
+        environment = {"DENOPS_AI_DAILY_CALL_LIMIT": "1"}
+        self.assertEqual(1, claim_daily_api_attempt(root, environment))
+        with self.assertRaisesRegex(RuntimeError, "daily OpenAI test-call limit"):
+            claim_daily_api_attempt(root, environment)
 
     def test_status_document_is_valid_json(self) -> None:
         root = self.make_root()

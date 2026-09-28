@@ -10,7 +10,13 @@ Group=pingpassport
 WorkingDirectory=/opt/denops-ai
 Environment=PYTHONPATH=/opt/denops-ai/src
 EnvironmentFile=/etc/denops-ai/web.env
-ExecStart=/usr/bin/python3 -m denops_ai_builder --root /opt/denops-ai --serve --host 192.168.1.13 --port 8080
+EnvironmentFile=/etc/denops-ai/openai.env
+Environment=DENOPS_AI_PROVIDER=openai
+Environment=DENOPS_AI_MODEL=gpt-6-sol
+Environment=DENOPS_AI_OPENAI_ENABLED=1
+Environment=DENOPS_AI_DAILY_CALL_LIMIT=1
+Environment=DENOPS_AI_MAX_OUTPUT_TOKENS=800
+ExecStart=/opt/denops-ai/.venv/bin/python -m denops_ai_builder --root /opt/denops-ai --serve --host 192.168.1.13 --port 8080
 Restart=on-failure
 RestartSec=5s
 NoNewPrivileges=yes

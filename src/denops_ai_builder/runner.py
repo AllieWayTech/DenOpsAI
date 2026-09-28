@@ -7,6 +7,7 @@ from pathlib import Path
 
 from .state import BuilderStatus, write_status
 
+OPENAI_KEY_SETTING = "OPENAI_API_KEY"
 MODEL_SETTING = "DENOPS_AI_MODEL_URL"
 SAFEGUARD_SETTING = "DENOPS_AI_SAFEGUARD_URL"
 
@@ -21,7 +22,15 @@ def normalized_task(task_path: Path) -> str:
 
 def configuration_gaps(environment: dict[str, str] | None = None) -> list[str]:
     values = os.environ if environment is None else environment
-    return [name for name in (MODEL_SETTING, SAFEGUARD_SETTING) if not values.get(name)]
+    provider = values.get("DENOPS_AI_PROVIDER", "openai")
+    if provider == "openai":
+        missing = [] if values.get(OPENAI_KEY_SETTING) else [OPENAI_KEY_SETTING]
+        if values.get("DENOPS_AI_OPENAI_ENABLED") != "1":
+            missing.append("DENOPS_AI_OPENAI_ENABLED")
+        return missing
+    if provider == "gpt-oss":
+        return [name for name in (MODEL_SETTING, SAFEGUARD_SETTING) if not values.get(name)]
+    return ["DENOPS_AI_PROVIDER"]
 
 
 def run_once(root: Path, environment: dict[str, str] | None = None) -> BuilderStatus:
@@ -60,4 +69,3 @@ def run_once(root: Path, environment: dict[str, str] | None = None) -> BuilderSt
 
         write_status(status_path, status)
         return status
-

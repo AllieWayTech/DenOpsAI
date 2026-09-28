@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 
+from .analysis import analyze_task
 from .runner import run_once
 from .web import serve
 
@@ -20,6 +21,9 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument(
         "--serve", action="store_true", help="start the administrative web interface"
     )
+    result.add_argument(
+        "--analyze", action="store_true", help="ask the configured provider for a task plan"
+    )
     result.add_argument("--host", default="127.0.0.1", help="web listen address")
     result.add_argument("--port", default=8080, type=int, help="web listen port")
     return result
@@ -34,6 +38,14 @@ def main() -> int:
         except (OSError, RuntimeError, ValueError) as error:
             print(json.dumps({"stage": "error", "reason": str(error)}, sort_keys=True))
             return 2
+        return 0
+    if arguments.analyze:
+        try:
+            plan = analyze_task(arguments.root)
+        except (OSError, RuntimeError, ValueError) as error:
+            print(json.dumps({"stage": "error", "reason": str(error)}, sort_keys=True))
+            return 2
+        print(plan)
         return 0
     try:
         status = run_once(arguments.root)

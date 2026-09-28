@@ -11,6 +11,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs
 
+from .analysis import analyze_task
 from .runner import normalized_task, run_once
 
 MAX_TASK_BYTES = 64 * 1024
@@ -106,8 +107,11 @@ def handler_for(root: Path, password: str) -> type[BaseHTTPRequestHandler]:
                 return
             status = _read_status(resolved_root)
             task = normalized_task(resolved_root / "tasks" / "current.md")
+            plan_path = resolved_root / "state" / "latest-plan.md"
+            plan = plan_path.read_text(encoding="utf-8") if plan_path.exists() else "No plan yet."
             status_json = html.escape(json.dumps(status, indent=2, sort_keys=True))
             task_text = html.escape(task)
+            plan_text = html.escape(plan)
             page = f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
 <title>DenOps AI Builder</title><style>
@@ -117,10 +121,12 @@ textarea{{box-sizing:border-box;width:100%;min-height:14rem;background:#0c0f13;c
 pre{{white-space:pre-wrap}} button{{padding:.65rem 1rem;margin:.5rem .5rem 0 0}}
 .warn{{color:#ffd866}}
 </style></head><body><h1>DenOps AI Builder</h1>
-<p class="warn">Control-plane milestone only. Model execution is disabled.</p>
-<section><h2>Status</h2><pre>{status_json}</pre><form method="post" action="/run"><button>Run readiness check</button></form></section>
+<p class="warn">Planning only. OpenAI cannot edit files or execute commands. Manual limit: one test call per UTC day, capped at 800 output tokens.</p>
+<section><h2>Status</h2><pre>{status_json}</pre><form method="post" action="/run"><button>Run readiness check</button></form>
+<form method="post" action="/analyze"><button>Use one OpenAI test call</button></form></section>
 <section><h2>Single task</h2><form method="post" action="/task"><textarea name="task">{task_text}</textarea><br><button>Save task</button></form>
 <form method="post" action="/clear"><button>Clear task</button></form></section>
+<section><h2>Latest implementation plan</h2><pre>{plan_text}</pre></section>
 </body></html>"""
             payload = page.encode("utf-8")
             self.send_response(HTTPStatus.OK)
@@ -141,6 +147,8 @@ pre{{white-space:pre-wrap}} button{{padding:.65rem 1rem;margin:.5rem .5rem 0 0}}
                     write_task(resolved_root / "tasks" / "current.md", "")
                 elif self.path == "/run":
                     run_once(resolved_root)
+                elif self.path == "/analyze":
+                    analyze_task(resolved_root)
                 else:
                     self.send_error(HTTPStatus.NOT_FOUND)
                     return
